@@ -6,6 +6,7 @@ import configparser
 import pathlib
 import subprocess
 
+
 class Weather():
     '''Information about the weather loaded from wttr.in'''
     def __init__(self, city):
@@ -19,8 +20,8 @@ class Weather():
 
 class Task:
     '''Task crated by user'''
-    def __init__(self, id, name, status, timer):
-        self.id = id
+    def __init__(self, task_id, name, status, timer):
+        self.task_id = task_id
         self.name = name
         self.status = status
         self.timer = timer
@@ -106,36 +107,42 @@ class Collection:
         self.items = []
         self.changed = False
 
+    def set_changed_false(self):
+        self.changed = False
+
+    def insert(self, number, task):
+        self.items.insert(number + 1, task)
+
     def add_item(self, item):
         '''Add an item to the collection'''
         if len(item.name) > 0 and item.name != "\[":
             self.items.append(item)
-            self.changed = True
+            self.set_changed_false()
 
     def delete_item(self, id):
         '''Delete an item with provided id from the collection'''
         for index, item in enumerate(self.items):
-            if item.id == id:
+            if item.task_id == id:
                 del self.items[index]
-                self.changed = True
+                self.set_changed_false()
                 break
 
     def rename_item(self, id, new_name):
         '''Edit an item name in the collection'''
         for item in self.items:
-            if item.id == id and len(new_name) > 0:
+            if item.task_id == id and len(new_name) > 0:
                 item.name = new_name
-                self.changed = True
+                self.set_changed_false()
 
     def toggle_item_status(self, id, new_status):
         '''Toggle the status for the item with provided id'''
         for item in self.items:
-            if item.id == id:
+            if item.task_id == id:
                 if item.status == new_status:
                     item.status = 'normal'
                 else:
                     item.status = new_status
-                self.changed = True
+                self.set_changed_false()
                 break
 
     def item_exists(self, item_name):
@@ -183,8 +190,8 @@ class Events(Collection):
     def change_day(self, id, new_day):
         '''Move task from certain place to another in the list'''
         for item in self.items:
-            if item.id == id:
-                item.day == new_day
+            if item.task_id == id:
+                item.day = new_day
                 self.changed = True
                 break
 
@@ -197,8 +204,8 @@ class Tasks(Collection):
         level = '----'if (self.items[number].name[:2] == '--') else '--'
         task.name = level + task.name
         if len(task.name) > 0:
-            self.items.insert(number+1, task)
-            self.changed = True
+            self.insert(number, task)
+            self.set_changed_false()
 
     def add_timestamp_for_task(self, number):
         '''Add a timestamp to this task'''
@@ -300,43 +307,54 @@ class TasksImporters:
                         user_tasks.add_item(Task(name, 'todo', Timer([])))
 
 
-class UserEventsLoader:
-    @staticmethod
-    def load_from_file(file):
-        '''Reads from user's file or create it if it does not exist'''
-        user_events = Events()
+class FileRepository:
+
+    def __init__(self, file):
+        self.file = file
+
+    def load_from_file(self):
         try:
-            with open(file, "r") as f:
-                lines = csv.reader(f, delimiter = ',')
-                for index, row in enumerate(lines):
-                    id = index
-                    year = int(row[1])
-                    month = int(row[2])
-                    day = int(row[3])
-                    name = row[4]
-
-                    # Account for old versions of the datafile:
-                    if len(row) > 5:
-                        repetition = row[5]
-                        frequency = row[6]
-                    else:
-                        repetition = '1'
-                        frequency = 'n'
-                    if len(row) > 7:
-                        status = row[7]
-                    else:
-                        status = 'normal'
-
-                    user_events.add_item(UserEvent(id, year, month, day,
-                                name, repetition, frequency, status))
-        # Create file if it does not exist:
+            with open(self.file, "r") as f:
+                return self.load_something(f)
         except IOError:
             try:
-                with open(file, "w+") as f:
-                    pass
+                with open(self.file, "w+") as f:
+                    Events()
             # Pass if there was a problem with file system:
             except (FileNotFoundError, NameError):
-                pass
+                Events()
+
+    def load_something(self, file):
+        pass
+
+    def save_to_file(self, file):
+
+class UserEventsLoader(FileRepository):
+
+    def load_something(self, file):
+        user_events = Events()
+        lines = csv.reader(file, delimiter=',')
+        for index, row in enumerate(lines):
+            id = index
+            year = int(row[1])
+            month = int(row[2])
+            day = int(row[3])
+            name = row[4]
+
+            # Account for old versions of the datafile:
+            if len(row) > 5:
+                repetition = row[5]
+                frequency = row[6]
+            else:
+                repetition = '1'
+                frequency = 'n'
+            if len(row) > 7:
+                status = row[7]
+            else:
+                status = 'normal'
+
+            user_events.add_item(UserEvent(id, year, month, day,
+                                           name, repetition, frequency, status))
         return user_events
 
 
@@ -347,7 +365,7 @@ class UserEventsSaver:
         dummy_file = original_file + '.bak'
         with open(dummy_file, "w") as f:
             for ev in user_events.items:
-                f.write(f'{ev.id},{ev.year},{ev.month},{ev.day},"{ev.name}",{ev.repetition},{ev.frequency},{ev.status}\n')
+                f.write(f'{ev.task_id},{ev.year},{ev.month},{ev.day},"{ev.name}",{ev.repetition},{ev.frequency},{ev.status}\n')
         os.remove(original_file)
         os.rename(dummy_file, original_file)
 
@@ -404,7 +422,7 @@ class EventImporters:
             if len(user_events.items) > 0:
                 id = 0
             else:
-                id = user_events.items[-1].id+1
+                id = user_events.items[-1].task_id + 1
             user_events.add_item(UserEvent(id, year, month, day, name, 1, n, 'normal'))
 
 

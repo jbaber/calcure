@@ -4,6 +4,7 @@ import curses
 import datetime
 import calendar
 import csv
+import enum
 import os
 import pathlib
 import configparser
@@ -21,12 +22,58 @@ from controls import *
 
 
 #################### TASK VIEWS ########################
+DELIMETER = '----'
+DELIMITER_SMALL = '--'
 
 
-class TaskView:
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+
+class TaskStatus(enum.Enum):
+    DONE = 1
+    IMPORTANT = 2
+
+
+class View:
+    def __init__(self, stdsrc):
+        self.stdscr = stdsrc
+
+    def display_line(self, y, x, text, color, bold=False, underlined=False):
+        '''Display the line of text respecting the slyling and available space'''
+
+        # Make sure that we display inside the screen:
+        y_max, x_max = self.stdscr.getmaxyx()
+        if y >= y_max or x >= x_max: return
+
+        # Cut the text if it does not fit the screen:
+        text = text[:(x_max - 1 - x)]
+
+        if bold and underlined:
+            self.stdscr.addstr(y, x, text, curses.color_pair(color) | curses.A_BOLD | curses.A_UNDERLINE)
+        elif bold and not underlined:
+            self.stdscr.addstr(y, x, text, curses.color_pair(color) | curses.A_BOLD)
+        elif underlined and not bold:
+            self.stdscr.addstr(y, x, text, curses.color_pair(color) | curses.A_UNDERLINE)
+        else:
+            self.stdscr.addstr(y, x, text, curses.color_pair(color))
+
+    def fill_background(self):
+        '''Fill the screen background with background color'''
+        y_max, x_max = self.stdscr.getmaxyx()
+        for index in range(y_max - 1):
+            self.stdscr.addstr(index, 0, " " * x_max, curses.color_pair(1))
+
+
+class TaskView(View):
     '''Display a single task'''
-    def __init__(self, task):
+    def __init__(self, task, privacy, point, stdscr):
+        super(TaskView, self).__init__(stdscr)
         self.task = task
+        self.privacy = privacy
+        self.point = point
 
     def color(self):
         '''Select the color depending on the status'''
@@ -38,7 +85,7 @@ class TaskView:
             return 20
         return 11
 
-    def icon(self, privacy):
+    def icon(self):
         '''Select the right icon for the task'''
         icon = cf.TODO_ICON
         if cf.DISPLAY_ICONS:
@@ -49,30 +96,30 @@ class TaskView:
             icon = cf.DONE_ICON
         if self.task.status == 'important':
             icon = cf.IMPORTANT_ICON
-        if privacy:
+        if self.privacy:
             icon = cf.PRIVACY_ICON
         return icon
 
-    def render(self, stdscr, y, x, privacy):
+    def render(self):
         '''Display a line with a task with right indentation'''
-        if self.task.name[:4] == '----':
+        if self.task.name[:4] == DELIMETER:
             tab = 4
-        elif self.task.name[:2] == '--':
+        elif self.task.name[:2] == DELIMITER_SMALL:
             tab = 2
         else:
             tab = 0
 
         # Obfuscate the name if privacy mode is on:
-        if privacy:
+        if self.privacy:
             name = cf.PRIVACY_ICON*len(self.task.name[tab:])
         else:
             name = self.task.name[tab:]
 
         # Display the icon, name, and timer:
-        display_line(stdscr, y, x+tab, self.icon(privacy), self.color())
-        display_line(stdscr, y, x+2+tab, name, self.color())
+        display_line(self.stdscr, self.point.x, self.point.x + tab, self.icon(), self.color())
+        display_line(self.stdscr, self.point.y, self.point.x + 2 + tab, name, self.color())
         timer_view = TimerView(self.task.timer)
-        timer_view.render(stdscr, y, 5+len(self.task.name))
+        timer_view.render(self.stdscr, self.point.y, 5 + len(self.task.name))
 
 
 class TimerView:
@@ -348,8 +395,6 @@ class MonthlyScreenView:
         FooterView.render(stdscr, screen.y_max, CALENDAR_HINT)
 
         # Displaying the dates and events:
-        day_number = 0
-        event_number = 0
         for row, week in enumerate(dates):
             for col, day in enumerate(week):
                 if day != 0:
@@ -362,36 +407,49 @@ class MonthlyScreenView:
                     daily_view = DailyView(user_events, holidays, birthdays, screen)
                     daily_view.render(stdscr, 3+row*y_cell, col*x_cell, screen, y_cell, x_cell)
 
-class JournalScreenView:
-    def __init__(self):
+
+class JournalScreenView(View):
+    def __init__(self, stdscr, user_tasks, weather, screen):
+        super.__init__(self, stdscr)
         self.refresh_time = 255
         self.refresh_now = True
+        self.user_tasks = user_tasks
+        self.weather = weather
+        self.screen = screen
+        self.header = HeaderView()
+        self.footer = FooterView()
 
-    def calculate_refresh_rate(self, user_tasks):
+    def set_tasks(self, user_tasks):
+        self.user_tasks = user_tasks
+
+    def calculate_refresh_rate(self):
         '''Check if a timer is running and change the refresh rate'''
-        for task in user_tasks.items:
+        for task in self.user_tasks.items:
             if task.timer.is_counting:
                 self.refresh_time = cf.REFRESH_INTERVAL*10
                 self.refresh_now = False
                 break
 
-    def render(self, stdscr, weather, user_tasks, screen):
+    def render(self):
         '''Journal view showing all tasks'''
-        if self.refresh_now: stdscr.clear()
-        if screen.x_max < 6 or screen.y_max < 3: return
+        if self.refresh_now: self.stdscr.clear()
+        if self.screen.x_max < 6 or screen.y_max < 3: return
         fill_background(stdscr)
 
         # Check if any of the timers is counting, and increase the update time:
-        self.calculate_refresh_rate(user_tasks)
+        self.calculate_refresh_rate()
         curses.halfdelay(self.refresh_time)
 
         # Display header and footer:
-        HeaderView.render(stdscr, cf.JOURNAL_HEADER, weather, screen.x_max)
-        FooterView.render(stdscr, screen.y_max, TODO_HINT)
+        self.header.render(self.stdscr, cf.JOURNAL_HEADER, self.weather, self.screen.x_max)
+        self.footer.render(stdscr, screen.y_max, TODO_HINT)
 
         # Display the tasks:
         journal_view = JournalView(user_tasks)
         journal_view.render(stdscr, 2, 1, screen)
+
+    def has_changed(self):
+        return self.user_tasks.changed
 
 
 class HelpScreenView:
@@ -459,6 +517,11 @@ class HelpScreenView:
 
 ########################## MAIN ###############################
 
+class ApplicationView:
+    def __init__(self, journal_view, helper_view):
+        self.journal_view = journal_view
+        self.helper_view = helper_view
+
 
 def main(stdscr):
     '''Main function that runs and switches screens'''
@@ -481,46 +544,41 @@ def main(stdscr):
     curses.curs_set(False)
     initialize_colors(stdscr)
 
+    journal_screen_view = JournalScreenView()
+    help_screen_view = HelpScreenView()
+
     # Running different screens depending on the state:
     while screen.state != 'exit':
 
         # Monthly screen:
         if screen.state == 'calendar':
-            while screen.state == 'calendar':
-                MonthlyScreenView.render(stdscr, screen, weather, user_events, holidays, birthdays)
-                control_monthly_screen(stdscr, screen, user_events)
-                if user_events.changed:
-                    UserEventsSaver.save_to_file(user_events, cf.EVENTS_FILE)
-                    user_events = UserEventsLoader.load_from_file(cf.EVENTS_FILE)
+            MonthlyScreenView.render(stdscr, screen, weather, user_events, holidays, birthdays)
+            control_monthly_screen(stdscr, screen, user_events)
 
         # Daily screen:
         elif screen.state == 'daily_calendar':
-            while screen.state == 'daily_calendar':
-                DailyScreenView.render(stdscr, screen, weather, user_events, holidays, birthdays)
-                control_daily_screen(stdscr, screen, user_events)
-                if user_events.changed:
-                    UserEventsSaver.save_to_file(user_events, cf.EVENTS_FILE)
-                    user_events = UserEventsLoader.load_from_file(cf.EVENTS_FILE)
+            DailyScreenView.render(stdscr, screen, weather, user_events, holidays, birthdays)
+            control_daily_screen(stdscr, screen, user_events)
 
         # Journal screen:
         elif screen.state == 'journal':
-            journal_screen_view = JournalScreenView()
-            while screen.state == 'journal':
-                journal_screen_view.render(stdscr, weather, user_tasks, screen)
-                control_journal_screen(stdscr, user_tasks, screen)
-                if user_tasks.changed:
-                    UserTasksSaver.save_to_file(user_tasks, cf.TASKS_FILE)
-                    user_tasks = UserTasksLoader.load_from_file(cf.TASKS_FILE)
+            journal_screen_view.render()
+            control_journal_screen(stdscr, user_tasks, screen)
 
         # Help screen:
         elif screen.state == 'help':
-            help_screen_view = HelpScreenView()
-            while screen.state == 'help':
-                help_screen_view.render(stdscr, screen)
-                control_help_screen(stdscr, screen)
+            help_screen_view.render(stdscr, screen)
+            control_help_screen(stdscr, screen)
 
         else:
             break
+
+        if journal_screen_view.has_changed():
+            UserTasksSaver.save_to_file(user_tasks, cf.TASKS_FILE)
+
+        if user_events.changed:
+            UserEventsSaver.save_to_file(user_events, cf.EVENTS_FILE)
+            user_events = UserEventsLoader.load_from_file(cf.EVENTS_FILE)
 
     # Cleaning up before quitting:
     curses.echo()

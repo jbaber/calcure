@@ -82,31 +82,31 @@ def control_monthly_screen(stdscr, screen, user_events):
             if screen.key in ['i', 'h']:
                 number = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_HIGH)
                 if user_events.filter_events_that_day(screen.date).is_valid_number(number):
-                    id = user_events.filter_events_that_day(screen.date).items[number].id
+                    id = user_events.filter_events_that_day(screen.date).items[number].task_id
                     user_events.toggle_item_status(id, 'important')
             if screen.key == 'l':
                 number = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_LOW)
                 if user_events.filter_events_that_day(screen.date).is_valid_number(number):
-                    id = user_events.filter_events_that_day(screen.date).items[number].id
+                    id = user_events.filter_events_that_day(screen.date).items[number].task_id
                     user_events.toggle_item_status(id, 'unimportant')
             if screen.key == 'u':
                 number = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_RESET)
                 if user_events.filter_events_that_day(screen.date).is_valid_number(number):
-                    id = user_events.filter_events_that_day(screen.date).items[number].id
+                    id = user_events.filter_events_that_day(screen.date).items[number].task_id
                     user_events.toggle_item_status(id, 'normal')
 
             # Delete event:
             if screen.key in ['d', 'x']:
                 number = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_DEL)
                 if user_events.filter_events_that_day(screen.date).is_valid_number(number):
-                    id = user_events.filter_events_that_day(screen.date).items[number].id
+                    id = user_events.filter_events_that_day(screen.date).items[number].task_id
                     user_events.delete_item(id)
 
             # Edit event:
             if screen.key in ['e', 'c']:
                 number = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_REN)
                 if user_events.filter_events_that_day(screen.date).is_valid_number(number):
-                    id = user_events.filter_events_that_day(screen.date).items[number].id
+                    id = user_events.filter_events_that_day(screen.date).items[number].task_id
                     display_line(stdscr, screen.y_max-2, 0, " "*(screen.x_max-2), 21)
                     new_name = input_string(stdscr, screen.y_max-2, 0, MSG_NEW_TITLE, screen.x_max-len(MSG_NEW_TITLE)-2)
                     user_events.rename_item(id, new_name)
@@ -115,7 +115,7 @@ def control_monthly_screen(stdscr, screen, user_events):
             if screen.key == 'm':
                 number = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_MOVE)
                 if user_events.filter_events_that_day(screen.date).is_valid_number(number):
-                    id = user_events.filter_events_that_day(screen.date).items[number].id
+                    id = user_events.filter_events_that_day(screen.date).items[number].task_id
                     display_line(stdscr, screen.y_max-2, 0, " "*(screen.x_max-2), 21)
                     question = f'{MSG_EVENT_MOVE_TO} {screen.year}/{screen.month}/'
                     day = input_day(stdscr, screen.y_max-2, 0, question)
@@ -154,7 +154,7 @@ def control_monthly_screen(stdscr, screen, user_events):
                 if screen.is_valid_day(day):
                     display_line(stdscr, screen.y_max-2, 0, " "*(screen.x_max-2), 21)
                     name = input_string(stdscr, screen.y_max-2, 0, MSG_EVENT_TITLE, screen.x_max-len(MSG_EVENT_TITLE)-2)
-                    id = user_events.items[-1].id + 1 if not user_events.is_empty() else 1
+                    id = user_events.items[-1].task_id + 1 if not user_events.is_empty() else 1
                     user_events.add_item(UserEvent(id, screen.year, screen.month, day, name, 1, 'n', 'normal'))
 
             # Add a recurring event:
@@ -164,7 +164,7 @@ def control_monthly_screen(stdscr, screen, user_events):
                 if screen.is_valid_day(day):
                     display_line(stdscr, screen.y_max-2, 1, " "*(screen.x_max-2), 21)
                     name = input_string(stdscr, screen.y_max-2, 0, MSG_EVENT_TITLE, screen.x_max-len(MSG_EVENT_TITLE)-2)
-                    id = user_events.items[-1].id + 1 if not user_events.is_empty() else 1
+                    id = user_events.items[-1].task_id + 1 if not user_events.is_empty() else 1
                     reps = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_REP)
                     freq = input_string(stdscr, screen.y_max-2, 0, MSG_EVENT_FR, 1)
                     if int(reps) > 0 and freq in ["d","w","m","y","n"]:
@@ -215,31 +215,31 @@ def control_daily_screen(stdscr, screen, user_events):
             if screen.key in ['i', 'h']:
                 number = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_HIGH)
                 if user_events.filter_events_that_day(screen.date).is_valid_number(number):
-                    id = user_events.filter_events_that_day(screen.date).items[number].id
+                    id = user_events.filter_events_that_day(screen.date).items[number].task_id
                     user_events.toggle_item_status(id, 'important')
             if screen.key == 'l':
                 number = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_LOW)
                 if user_events.filter_events_that_day(screen.date).is_valid_number(number):
-                    id = user_events.filter_events_that_day(screen.date).items[number].id
+                    id = user_events.filter_events_that_day(screen.date).items[number].task_id
                     user_events.toggle_item_status(id, 'unimportant')
             if screen.key == 'u':
                 number = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_RESET)
                 if user_events.filter_events_that_day(screen.date).is_valid_number(number):
-                    id = user_events.filter_events_that_day(screen.date).items[number].id
+                    id = user_events.filter_events_that_day(screen.date).items[number].task_id
                     user_events.toggle_item_status(id, 'normal')
 
             # Delete event:
             if screen.key in ['d', 'x']:
                 number = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_DEL)
                 if user_events.filter_events_that_day(screen.date).is_valid_number(number):
-                    id = user_events.filter_events_that_day(screen.date).items[number].id
+                    id = user_events.filter_events_that_day(screen.date).items[number].task_id
                     user_events.delete_item(id)
 
             # Edit event:
             if screen.key in ['e', 'c']:
                 number = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_REN)
                 if user_events.filter_events_that_day(screen.date).is_valid_number(number):
-                    id = user_events.filter_events_that_day(screen.date).items[number].id
+                    id = user_events.filter_events_that_day(screen.date).items[number].task_id
                     display_line(stdscr, screen.y_max-2, 0, " "*(screen.x_max-2), 21)
                     new_name = input_string(stdscr, screen.y_max-2, 0, MSG_NEW_TITLE, screen.x_max-len(MSG_NEW_TITLE)-2)
                     user_events.rename_item(id, new_name)
@@ -248,7 +248,7 @@ def control_daily_screen(stdscr, screen, user_events):
             if screen.key == 'm':
                 number = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_MOVE)
                 if user_events.filter_events_that_day(screen.date).is_valid_number(number):
-                    id = user_events.filter_events_that_day(screen.date).items[number].id
+                    id = user_events.filter_events_that_day(screen.date).items[number].task_id
                     display_line(stdscr, screen.y_max-2, 0, " "*(screen.x_max-2), 21)
                     question = f'{MSG_EVENT_MOVE_TO}{screen.year}/{screen.month}/'
                     day = input_day(stdscr, screen.y_max-2, 0, question)
@@ -275,13 +275,13 @@ def control_daily_screen(stdscr, screen, user_events):
             # Add single event:
             if screen.key == "a":
                 name = input_string(stdscr, screen.y_max-2, 0, MSG_EVENT_TITLE, screen.x_max-len(MSG_EVENT_TITLE)-2)
-                id = user_events.items[-1].id + 1 if not user_events.is_empty() else 1
+                id = user_events.items[-1].task_id + 1 if not user_events.is_empty() else 1
                 user_events.add_item(UserEvent(id, screen.year, screen.month, screen.day, name, 1, 'n', 'normal'))
 
             # Add a recurring event:
             if screen.key == "A":
                 name = input_string(stdscr, screen.y_max-2, 0, MSG_EVENT_TITLE, screen.x_max-len(MSG_EVENT_TITLE)-2)
-                id = user_events.items[-1].id + 1 if not user_events.is_empty() else 1
+                id = user_events.items[-1].task_id + 1 if not user_events.is_empty() else 1
                 reps = input_integer(stdscr, screen.y_max-2, 0, MSG_EVENT_REP)
                 freq = input_string(stdscr, screen.y_max-2, 0, MSG_EVENT_FR, 1)
                 if int(reps) > 0 and freq in ["d","w","m","y","n"]:
